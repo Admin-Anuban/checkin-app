@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <title>เครื่องมือลงทะเบียนใบหน้าพนักงาน</title>
+    <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+    <style>
+        body { font-family: sans-serif; padding: 20px; }
+        #descriptorOutput { width: 100%; height: 150px; margin-top: 10px; }
+    </style>
+</head>
+<body>
+    <h1>เครื่องมือลงทะเบียนใบหน้า (สำหรับ Admin)</h1>
+    <ol>
+        <li>อัปโหลดรูปพนักงาน (เช่น EMP001.jpg) ไปยังโฟลเดอร์ <code>employee_images</code> บน GitHub ก่อน</li>
+        <li>ใส่รหัสพนักงาน (ไม่ต้องใส่ .jpg)</li>
+        <li>กดปุ่ม "สร้างข้อมูลใบหน้า"</li>
+        <li>คัดลอกข้อความที่ได้ ไปสร้างไฟล์ใหม่ในโฟลเดอร์ <code>descriptors</code> ชื่อว่า EMP001.json</li>
+    </ol>
+
+    <input type="text" id="employeeId" placeholder="ใส่รหัสพนักงาน เช่น EMP001">
+    <button onclick="generateDescriptor()">สร้างข้อมูลใบหน้า</button>
+
+    <h3>ข้อมูล Descriptor (คัดลอกทั้งหมดนี้):</h3>
+    <textarea id="descriptorOutput"></textarea>
+
+    <script>
+        // ✅ เปลี่ยนให้เป็น URL repo ของคุณเอง
+        const GITHUB_REPO_URL = 'https://raw.githubusercontent.com/Admin-Anuban/my-checkin-app/main/';
+
+        // ✅ ใช้ CDN load โมเดล
+        async function loadModelsFromCDN() {
+            const MODEL_URL = 'https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/weights';
+            await faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL);
+            await faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL);
+            await faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL);
+        }
+
+        async function generateDescriptor() {
+            const employeeId = document.getElementById('employeeId').value;
+            const output = document.getElementById('descriptorOutput');
+            if (!employeeId) {
+                alert('กรุณาใส่รหัสพนักงาน');
+                return;
+            }
+
+            output.value = 'กำลังโหลดและประมวลผลรูปภาพ...';
+
+            const imageUrl = `${GITHUB_REPO_URL}employee_images/${employeeId}.jpg?t=${Date.now()}`;
+
+            try {
+                await loadModelsFromCDN();
+                const img = await faceapi.fetchImage(imageUrl);
+                const detection = await faceapi.detectSingleFace(img).withFaceLandmarks().withFaceDescriptor();
+
+                if (detection) {
+                    const descriptorArray = Array.from(detection.descriptor);
+                    output.value = JSON.stringify(descriptorArray);
+                } else {
+                    output.value = '❌ ไม่พบใบหน้าในภาพ กรุณาใช้รูปหน้าตรงและชัดเจน';
+                }
+            } catch (err) {
+                output.value = '❌ โหลดภาพไม่ได้ ตรวจสอบชื่อไฟล์หรือรูปใน GitHub อีกครั้ง';
+                console.error(err);
+            }
+        }
+    </script>
+</body>
+</html>
